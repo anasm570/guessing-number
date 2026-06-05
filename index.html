@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎲 لعبة تخمين الرقم السري</title>
+    <style>
+        * { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body {
+            background: linear-gradient(145deg, #1a472a, #0a2a1a);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+        .game-container {
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(8px);
+            border-radius: 48px;
+            padding: 30px;
+            max-width: 500px;
+            width: 100%;
+            text-align: center;
+            color: #ffefc0;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            border: 1px solid #ffcc88;
+        }
+        h1 { color: #ffdd99; margin-bottom: 10px; }
+        input {
+            padding: 12px;
+            font-size: 1.2rem;
+            border-radius: 40px;
+            border: none;
+            text-align: center;
+            width: 120px;
+            margin: 10px;
+            background: #2c3e2f;
+            color: white;
+        }
+        button {
+            background: #e67e22;
+            border: none;
+            padding: 12px 24px;
+            font-size: 1rem;
+            border-radius: 40px;
+            cursor: pointer;
+            color: white;
+            transition: 0.1s;
+            margin: 5px;
+        }
+        button:active { transform: scale(0.96); }
+        .message {
+            background: #00000066;
+            border-radius: 30px;
+            padding: 15px;
+            margin-top: 20px;
+            font-weight: bold;
+        }
+        .attempts { font-size: 0.9rem; margin-top: 10px; color: #aaa; }
+        .new-game-btn { background: #2c6e2c; }
+        footer { margin-top: 20px; font-size: 0.7rem; color: #88aacc; }
+    </style>
+</head>
+<body>
+<div class="game-container">
+    <h1>🔢 خمّن الرقم السري</h1>
+    <p>رقم بين <strong>1</strong> و <strong>100</strong></p>
+    <input type="number" id="guessInput" min="1" max="100" placeholder="??">
+    <button id="guessBtn">تخمين</button>
+    <button id="newGameBtn" class="new-game-btn">لعبة جديدة</button>
+    <div class="message" id="message">
+        ✨ ابدأ اللعبة، اضغط "تخمين" ✨
+    </div>
+    <div class="attempts" id="attemptsDisplay">📊 عدد المحاولات: 0</div>
+    <footer>⚡ تعمل عبر Flask + Vercel Serverless</footer>
+</div>
+
+<script>
+    let attempts = 0;
+
+    async function sendGuess(guess) {
+        const response = await fetch('/api/guess', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ guess: guess })
+        });
+        const data = await response.json();
+        return data;
+    }
+
+    async function newGame() {
+        const response = await fetch('/api/new_game', { method: 'POST' });
+        const data = await response.json();
+        if (data.status === 'ok') {
+            attempts = 0;
+            document.getElementById('attemptsDisplay').innerText = `📊 عدد المحاولات: ${attempts}`;
+            document.getElementById('message').innerHTML = '🎲 بدأت لعبة جديدة! خمّن رقماً بين 1 و 100. 🎲';
+            document.getElementById('guessInput').value = '';
+        }
+    }
+
+    document.getElementById('guessBtn').onclick = async () => {
+        const guess = parseInt(document.getElementById('guessInput').value);
+        if (isNaN(guess) || guess < 1 || guess > 100) {
+            document.getElementById('message').innerHTML = '⚠️ الرجاء إدخال رقم بين 1 و 100';
+            return;
+        }
+        const result = await sendGuess(guess);
+        attempts++;
+        document.getElementById('attemptsDisplay').innerText = `📊 عدد المحاولات: ${attempts}`;
+        let msg = '';
+        if (result.result === 'correct') {
+            msg = `🎉 تهانينا! الرقم كان ${result.secret}. فزت في ${attempts} محاولة! 🎉`;
+            document.getElementById('message').innerHTML = msg;
+            attempts = 0;
+            document.getElementById('attemptsDisplay').innerText = `📊 عدد المحاولات: 0`;
+            await newGame();
+        } else if (result.result === 'low') {
+            msg = `📉 الرقم ${guess} صغير جداً، حاول رقماً أكبر.`;
+            document.getElementById('message').innerHTML = msg;
+        } else if (result.result === 'high') {
+            msg = `📈 الرقم ${guess} كبير جداً، حاول رقماً أصغر.`;
+            document.getElementById('message').innerHTML = msg;
+        } else {
+            msg = `⚠️ خطأ: ${result.error || 'حدث خطأ'}`;
+            document.getElementById('message').innerHTML = msg;
+        }
+    };
+
+    document.getElementById('newGameBtn').onclick = async () => {
+        await newGame();
+    };
+
+    window.onload = () => {
+        newGame();
+    };
+</script>
+</body>
+</html>
